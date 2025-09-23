@@ -5,7 +5,7 @@ import finnhub
 import pandas as pd
 
 # --- Configuration ---
-DATA_DIR = "../data"
+DATA_DIR = "data"
 NEWSAPI_KEY = os.environ.get("NEWSAPI_KEY", "YOUR_NEWSAPI_KEY")
 FINNHUB_KEY = os.environ.get("FINNHUB_KEY", "YOUR_FINNHUB_KEY")
 
@@ -18,13 +18,38 @@ FINNHUB_TICKERS = ["AAPL", "TSLA", "GOOGL"]
 
 # --- Functions ---
 
+from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
+
+# --- Functions ---
+
+def analyze_sentiment(text):
+    """
+    Analyzes the sentiment of a given text using VADER.
+    """
+    analyzer = SentimentIntensityAnalyzer()
+    if text is None:
+        return {}
+    return analyzer.polarity_scores(text)
+
 def fetch_newsapi_data(api_key, keywords):
     """
     Fetches news articles from NewsAPI for a list of keywords.
     """
     if api_key == "YOUR_NEWSAPI_KEY":
         print("NewsAPI key not set. Skipping NewsAPI fetch.")
-        return None
+        # Create dummy data for demonstration
+        dummy_data = {}
+        for keyword in keywords:
+            dummy_data[keyword] = [{
+                'title': f'This is a sample title about {keyword}',
+                'description': 'This is a sample description. The market is volatile.',
+                'source': {'name': 'Dummy Source'},
+                'publishedAt': pd.Timestamp.now().isoformat(),
+                'url': '#',
+                'sentiment': analyze_sentiment(f'This is a sample title about {keyword}. This is a sample description. The market is volatile.')
+            }]
+        return dummy_data
+
 
     newsapi = NewsApiClient(api_key=api_key)
     all_articles = {}
@@ -38,6 +63,9 @@ def fetch_newsapi_data(api_key, keywords):
                 sort_by='relevancy',
                 page_size=20  # Keep it small to avoid rate limits
             )
+            for article in articles['articles']:
+                text_to_analyze = f"{article['title']}. {article['description']}"
+                article['sentiment'] = analyze_sentiment(text_to_analyze)
             all_articles[keyword] = articles['articles']
         except Exception as e:
             print(f"Error fetching news for '{keyword}': {e}")
@@ -51,7 +79,18 @@ def fetch_finnhub_data(api_key, tickers):
     """
     if api_key == "YOUR_FINNHUB_KEY":
         print("Finnhub key not set. Skipping Finnhub fetch.")
-        return None
+        # Create dummy data for demonstration
+        dummy_data = {}
+        for ticker in tickers:
+            dummy_data[ticker] = [{
+                'headline': f'Sample headline for {ticker}',
+                'summary': 'This is a sample summary. The company reported strong earnings.',
+                'source': 'Dummy Source',
+                'datetime': pd.Timestamp.now().timestamp(),
+                'url': '#',
+                'sentiment': analyze_sentiment(f'Sample headline for {ticker}. This is a sample summary. The company reported strong earnings.')
+            }]
+        return dummy_data
 
     finnhub_client = finnhub.Client(api_key=api_key)
     all_news = {}
@@ -63,6 +102,9 @@ def fetch_finnhub_data(api_key, tickers):
             today = pd.Timestamp.now().strftime('%Y-%m-%d')
             week_ago = (pd.Timestamp.now() - pd.Timedelta(days=7)).strftime('%Y-%m-%d')
             news = finnhub_client.company_news(ticker, _from=week_ago, to=today)
+            for item in news:
+                text_to_analyze = f"{item['headline']}. {item['summary']}"
+                item['sentiment'] = analyze_sentiment(text_to_analyze)
             all_news[ticker] = news
         except Exception as e:
             print(f"Error fetching news for '{ticker}': {e}")

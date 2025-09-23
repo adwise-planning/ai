@@ -4,13 +4,25 @@ import os
 from datetime import datetime
 
 # --- Configuration ---
-DATA_DIR = "../data"
-TICKER = "AAPL"
+DATA_DIR = "data"
+TICKERS = ["AAPL", "^GSPC"]  # S&P 500 is ^GSPC
 START_DATE = "2020-01-01"
 END_DATE = datetime.now().strftime("%Y-%m-%d")
-PARQUET_FILE = os.path.join(DATA_DIR, f"{TICKER}_historical_data.parquet")
 
 # --- Functions ---
+
+import pandas_ta as ta
+
+def add_technical_indicators(df):
+    """
+    Adds technical indicators to the DataFrame.
+    """
+    print("Adding technical indicators (RSI, MACD, Bollinger Bands)...")
+    df.ta.rsi(append=True)
+    df.ta.macd(append=True)
+    df.ta.bbands(append=True)
+    print("Technical indicators added.")
+    return df
 
 def fetch_historical_data(ticker, start_date, end_date):
     """
@@ -29,6 +41,9 @@ def fetch_historical_data(ticker, start_date, end_date):
 
     if isinstance(df.columns, pd.MultiIndex):
         df.columns = df.columns.droplevel(1)
+
+    if not df.empty:
+        df = add_technical_indicators(df)
 
     print(f"Successfully fetched {len(df)} rows of data.")
     return df
@@ -77,6 +92,9 @@ def update_data(ticker, filepath):
     combined_df = pd.concat([existing_df, recent_df])
     combined_df = combined_df[~combined_df.index.duplicated(keep='last')]
 
+    # Recalculate technical indicators
+    combined_df = add_technical_indicators(combined_df)
+
     # Save updated data
     save_to_parquet(combined_df, filepath)
     print(f"Data updated. Total rows: {len(combined_df)}")
@@ -84,21 +102,25 @@ def update_data(ticker, filepath):
 # --- Main Execution ---
 
 if __name__ == "__main__":
-    # 1. Initial data download
-    if not os.path.exists(PARQUET_FILE):
-        historical_df = fetch_historical_data(TICKER, START_DATE, END_DATE)
-        if not historical_df.empty:
-            save_to_parquet(historical_df, PARQUET_FILE)
-    else:
-        print(f"Historical data file already exists at {PARQUET_FILE}. Skipping initial download.")
+    for ticker in TICKERS:
+        print(f"\n--- Processing data for {ticker} ---")
+        parquet_file = os.path.join(DATA_DIR, f"{ticker.replace('^', '')}_historical_data.parquet")
 
-    # 2. Update with recent data
-    update_data(TICKER, PARQUET_FILE)
+        # 1. Initial data download
+        if not os.path.exists(parquet_file):
+            historical_df = fetch_historical_data(ticker, START_DATE, END_DATE)
+            if not historical_df.empty:
+                save_to_parquet(historical_df, parquet_file)
+        else:
+            print(f"Historical data file already exists at {parquet_file}. Skipping initial download.")
 
-    # 3. Display sample of the data
-    if os.path.exists(PARQUET_FILE):
-        final_df = pd.read_parquet(PARQUET_FILE)
-        print("\n--- Sample of the final data ---")
-        print(final_df.head())
-        print("\n--- Data Information ---")
-        final_df.info()
+        # 2. Update with recent data
+        update_data(ticker, parquet_file)
+
+        # 3. Display sample of the data
+        if os.path.exists(parquet_file):
+            final_df = pd.read_parquet(parquet_file)
+            print(f"\n--- Sample of the final data for {ticker} ---")
+            print(final_df.head())
+            print("\n--- Data Information ---")
+            final_df.info()

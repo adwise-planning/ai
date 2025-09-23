@@ -5,13 +5,26 @@ from datetime import datetime, timedelta
 import time
 
 # --- Configuration ---
-DATA_DIR = "../data"
+DATA_DIR = "data"
 SYMBOL = "BTCUSDT"
 INTERVAL = Client.KLINE_INTERVAL_1HOUR
 START_DATE = "2020-01-01"
 PARQUET_FILE = os.path.join(DATA_DIR, f"{SYMBOL}_{INTERVAL}_historical_data.parquet")
 
 # --- Functions ---
+
+import pandas_ta as ta
+
+def add_technical_indicators(df):
+    """
+    Adds technical indicators to the DataFrame.
+    """
+    print("Adding technical indicators (RSI, MACD, Bollinger Bands)...")
+    df.ta.rsi(append=True)
+    df.ta.macd(append=True)
+    df.ta.bbands(append=True)
+    print("Technical indicators added.")
+    return df
 
 def fetch_historical_klines(symbol, interval, start_str):
     """
@@ -50,6 +63,9 @@ def fetch_historical_klines(symbol, interval, start_str):
 
     print(f"Fetched a total of {len(klines)} klines for {symbol}.")
 
+    if not klines:
+        return pd.DataFrame()
+
     # Create a pandas DataFrame
     df = pd.DataFrame(klines, columns=[
         'Open time', 'Open', 'High', 'Low', 'Close', 'Volume',
@@ -67,6 +83,9 @@ def fetch_historical_klines(symbol, interval, start_str):
 
     # Drop unnecessary columns
     df = df.drop(['Close time', 'Ignore', 'Quote asset volume', 'Number of trades', 'Taker buy base asset volume', 'Taker buy quote asset volume'], axis=1)
+
+    # Add technical indicators
+    df = add_technical_indicators(df)
 
     return df
 

@@ -44,32 +44,54 @@ This page displays financial news from NewsAPI and Finnhub.
 """)
 
 
+import plotly.express as px
+
 # --- NewsAPI Section ---
 st.header("General Market News (from NewsAPI)")
 if newsapi_data:
     all_headlines = []
+    all_articles_list = []
     for keyword, articles in newsapi_data.items():
-        st.subheader(f"Keyword: {keyword}")
-        if articles:
-            for article in articles:
-                st.write(f"**{article['title']}**")
-                st.write(f"_{article['source']['name']}_ - {pd.to_datetime(article['publishedAt']).strftime('%Y-%m-%d')}")
-                st.write(article['description'])
-                st.write(f"[Read more]({article['url']})")
-                st.markdown("---")
-                all_headlines.append(article['title'])
-        else:
-            st.write("No articles found for this keyword.")
+        for article in articles:
+            article['keyword'] = keyword
+            all_articles_list.append(article)
 
-    # Word Cloud
-    if all_headlines:
-        st.subheader("Headlines Word Cloud")
-        text = " ".join(all_headlines)
-        wordcloud = WordCloud(width=800, height=400, background_color='white').generate(text)
-        fig, ax = plt.subplots()
-        ax.imshow(wordcloud, interpolation='bilinear')
-        ax.axis('off')
-        st.pyplot(fig)
+    if all_articles_list:
+        df_newsapi = pd.DataFrame(all_articles_list)
+        df_newsapi['sentiment_compound'] = df_newsapi['sentiment'].apply(lambda x: x.get('compound', 0))
+
+        # --- Sentiment Chart ---
+        avg_sentiment_newsapi = df_newsapi.groupby('keyword')['sentiment_compound'].mean().reset_index()
+        fig_newsapi = px.bar(avg_sentiment_newsapi, x='keyword', y='sentiment_compound', title='Average Sentiment by Keyword', color='keyword')
+        st.plotly_chart(fig_newsapi, use_container_width=True)
+
+        # --- Articles ---
+        for keyword, articles in newsapi_data.items():
+            st.subheader(f"Keyword: {keyword}")
+            if articles:
+                for article in articles:
+                    st.write(f"**{article['title']}**")
+                    st.write(f"_{article['source']['name']}_ - {pd.to_datetime(article['publishedAt']).strftime('%Y-%m-%d')}")
+                    st.write(article['description'])
+                    sentiment = article.get('sentiment', {})
+                    st.write(f"**Sentiment:** Compound: `{sentiment.get('compound', 0):.2f}`, "
+                             f"Positive: `{sentiment.get('pos', 0):.2f}`, "
+                             f"Negative: `{sentiment.get('neg', 0):.2f}`")
+                    st.write(f"[Read more]({article['url']})")
+                    st.markdown("---")
+                    all_headlines.append(article['title'])
+            else:
+                st.write("No articles found for this keyword.")
+
+        # Word Cloud
+        if all_headlines:
+            st.subheader("Headlines Word Cloud")
+            text = " ".join(all_headlines)
+            wordcloud = WordCloud(width=800, height=400, background_color='white').generate(text)
+            fig, ax = plt.subplots()
+            ax.imshow(wordcloud, interpolation='bilinear')
+            ax.axis('off')
+            st.pyplot(fig)
 
 else:
     st.warning("NewsAPI data not found. Run `python src/news_pipeline.py` to fetch it.")
@@ -78,16 +100,36 @@ else:
 # --- Finnhub Section ---
 st.header("Company-Specific News (from Finnhub)")
 if finnhub_data:
+    all_finnhub_list = []
     for ticker, news_items in finnhub_data.items():
-        st.subheader(f"Ticker: {ticker}")
-        if news_items:
-            for item in news_items:
-                st.write(f"**{item['headline']}**")
-                st.write(f"_{item['source']}_ - {pd.to_datetime(item['datetime'], unit='s').strftime('%Y-%m-%d')}")
-                st.write(item['summary'])
-                st.write(f"[Read more]({item['url']})")
-                st.markdown("---")
-        else:
-            st.write("No news found for this ticker.")
+        for item in news_items:
+            item['ticker'] = ticker
+            all_finnhub_list.append(item)
+
+    if all_finnhub_list:
+        df_finnhub = pd.DataFrame(all_finnhub_list)
+        df_finnhub['sentiment_compound'] = df_finnhub['sentiment'].apply(lambda x: x.get('compound', 0))
+
+        # --- Sentiment Chart ---
+        avg_sentiment_finnhub = df_finnhub.groupby('ticker')['sentiment_compound'].mean().reset_index()
+        fig_finnhub = px.bar(avg_sentiment_finnhub, x='ticker', y='sentiment_compound', title='Average Sentiment by Ticker', color='ticker')
+        st.plotly_chart(fig_finnhub, use_container_width=True)
+
+        # --- Articles ---
+        for ticker, news_items in finnhub_data.items():
+            st.subheader(f"Ticker: {ticker}")
+            if news_items:
+                for item in news_items:
+                    st.write(f"**{item['headline']}**")
+                    st.write(f"_{item['source']}_ - {pd.to_datetime(item['datetime'], unit='s').strftime('%Y-%m-%d')}")
+                    st.write(item['summary'])
+                    sentiment = item.get('sentiment', {})
+                    st.write(f"**Sentiment:** Compound: `{sentiment.get('compound', 0):.2f}`, "
+                             f"Positive: `{sentiment.get('pos', 0):.2f}`, "
+                             f"Negative: `{sentiment.get('neg', 0):.2f}`")
+                    st.write(f"[Read more]({item['url']})")
+                    st.markdown("---")
+            else:
+                st.write("No news found for this ticker.")
 else:
     st.warning("Finnhub data not found. Run `python src/news_pipeline.py` to fetch it.")

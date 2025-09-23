@@ -5,7 +5,11 @@ python-binance
 kaggle
 duckdb
 scikit-learn
+joblib
 newsapi-python
 finnhub-python
 streamlit
 plotly
+pandas-ta
+vaderSentiment
+pandas-datareader
