@@ -2,3 +2,10 @@ yfinance
 pandas
 pyarrow
 python-binance
+kaggle
+duckdb
+scikit-learn
+newsapi-python
+finnhub-python
+streamlit
+plotly

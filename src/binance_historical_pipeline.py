@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 import time
 
 # --- Configuration ---
-DATA_DIR = "data"
+DATA_DIR = "../data"
 SYMBOL = "BTCUSDT"
 INTERVAL = Client.KLINE_INTERVAL_1HOUR
 START_DATE = "2020-01-01"

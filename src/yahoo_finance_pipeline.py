@@ -4,7 +4,7 @@ import os
 from datetime import datetime
 
 # --- Configuration ---
-DATA_DIR = "data"
+DATA_DIR = "../data"
 TICKER = "AAPL"
 START_DATE = "2020-01-01"
 END_DATE = datetime.now().strftime("%Y-%m-%d")
