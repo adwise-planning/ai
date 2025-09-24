@@ -26,38 +26,7 @@ SCALER_FILE = f"{DATA_DIR}/scaler.joblib"
 import os
 from datetime import datetime, timedelta
 
-def download_from_kaggle():
-    """
-    Attempts to download the credit dataset from Kaggle.
-    """
-    print("--- Attempting to download data from Kaggle ---")
-    if os.path.exists(RAW_DATA_FILE):
-        print(f"Data file already exists at {RAW_DATA_FILE}. Skipping download.")
-        return True
-
-    try:
-        subprocess.run(
-            [
-                "kaggle", "datasets", "download",
-                "-d", KAGGLE_DATASET,
-                "-f", KAGGLE_FILENAME,
-                "-p", DATA_DIR,
-                "--unzip"
-            ],
-            check=True,
-            capture_output=True,
-            text=True
-        )
-        print("Successfully downloaded data from Kaggle.")
-        return True
-    except (subprocess.CalledProcessError, FileNotFoundError) as e:
-        print("!!! WARNING: Failed to download from Kaggle. !!!")
-        if isinstance(e, subprocess.CalledProcessError):
-            print(f"Kaggle API error: {e.stderr}")
-        else:
-            print("It seems the 'kaggle' command is not installed or not in your PATH.")
-        print("Proceeding with synthetic data generation as a fallback.")
-        return False
+from src.data_fetcher import download_from_kaggle
 
 
 def generate_synthetic_lending_club_data(num_rows=1000):
@@ -196,7 +165,7 @@ def save_to_parquet(df, filepath):
 
 if __name__ == "__main__":
     # 1. Attempt to download real data from Kaggle
-    download_successful = download_from_kaggle()
+    download_successful = download_from_kaggle(KAGGLE_DATASET, KAGGLE_FILENAME, DATA_DIR)
 
     # 2. If download fails, generate synthetic data as a fallback
     if not os.path.exists(RAW_DATA_FILE):

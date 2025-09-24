@@ -22,9 +22,8 @@ from src.utils import run_script
 import time
 
 PIPELINE_SCRIPTS = [
+    "src/financial_data_pipeline.py",
     "src/credit_data_pipeline.py",
-    "src/yahoo_finance_pipeline.py",
-    "src/binance_historical_pipeline.py",
     "src/macro_data_pipeline.py",
     "src/news_pipeline.py",
 ]

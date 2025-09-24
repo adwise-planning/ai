@@ -36,13 +36,15 @@ def analyze_sentiment(text):
         return {}
     return analyzer.polarity_scores(text)
 
-def fetch_newsapi_data(api_key, keywords):
+from src.data_fetcher import fetch_newsapi_articles, fetch_finnhub_news
+
+def process_newsapi_data(api_key, keywords):
     """
-    Fetches news articles from NewsAPI for a list of keywords.
+    Fetches and processes news from NewsAPI.
     """
-    if api_key == "YOUR_NEWSAPI_KEY":
-        print("NewsAPI key not set. Skipping NewsAPI fetch.")
-        # Create dummy data for demonstration
+    all_articles = fetch_newsapi_articles(api_key, keywords)
+    if not all_articles:
+        # Create dummy data for demonstration if fetch returns empty
         dummy_data = {}
         for keyword in keywords:
             dummy_data[keyword] = [{
@@ -51,39 +53,21 @@ def fetch_newsapi_data(api_key, keywords):
                 'source': {'name': 'Dummy Source'},
                 'publishedAt': pd.Timestamp.now().isoformat(),
                 'url': '#',
-                'sentiment': analyze_sentiment(f'This is a sample title about {keyword}. This is a sample description. The market is volatile.')
             }]
-        return dummy_data
+        all_articles = dummy_data
 
-
-    newsapi = NewsApiClient(api_key=api_key)
-    all_articles = {}
-
-    for keyword in keywords:
-        print(f"Fetching news for '{keyword}' from NewsAPI...")
-        try:
-            articles = newsapi.get_everything(
-                q=keyword,
-                language='en',
-                sort_by='relevancy',
-                page_size=20  # Keep it small to avoid rate limits
-            )
-            for article in articles['articles']:
-                text_to_analyze = f"{article['title']}. {article['description']}"
-                article['sentiment'] = analyze_sentiment(text_to_analyze)
-            all_articles[keyword] = articles['articles']
-        except Exception as e:
-            print(f"Error fetching news for '{keyword}': {e}")
-            all_articles[keyword] = []
-
+    for keyword in all_articles:
+        for article in all_articles[keyword]:
+            text_to_analyze = f"{article.get('title', '')}. {article.get('description', '')}"
+            article['sentiment'] = analyze_sentiment(text_to_analyze)
     return all_articles
 
-def fetch_finnhub_data(api_key, tickers):
+def process_finnhub_data(api_key, tickers):
     """
-    Fetches company news from Finnhub for a list of tickers.
+    Fetches and processes news from Finnhub.
     """
-    if api_key == "YOUR_FINNHUB_KEY":
-        print("Finnhub key not set. Skipping Finnhub fetch.")
+    all_news = fetch_finnhub_news(api_key, tickers)
+    if not all_news:
         # Create dummy data for demonstration
         dummy_data = {}
         for ticker in tickers:
@@ -93,28 +77,13 @@ def fetch_finnhub_data(api_key, tickers):
                 'source': 'Dummy Source',
                 'datetime': pd.Timestamp.now().timestamp(),
                 'url': '#',
-                'sentiment': analyze_sentiment(f'Sample headline for {ticker}. This is a sample summary. The company reported strong earnings.')
             }]
-        return dummy_data
+        all_news = dummy_data
 
-    finnhub_client = finnhub.Client(api_key=api_key)
-    all_news = {}
-
-    for ticker in tickers:
-        print(f"Fetching news for '{ticker}' from Finnhub...")
-        try:
-            # Fetch news for the last 7 days
-            today = pd.Timestamp.now().strftime('%Y-%m-%d')
-            week_ago = (pd.Timestamp.now() - pd.Timedelta(days=7)).strftime('%Y-%m-%d')
-            news = finnhub_client.company_news(ticker, _from=week_ago, to=today)
-            for item in news:
-                text_to_analyze = f"{item['headline']}. {item['summary']}"
-                item['sentiment'] = analyze_sentiment(text_to_analyze)
-            all_news[ticker] = news
-        except Exception as e:
-            print(f"Error fetching news for '{ticker}': {e}")
-            all_news[ticker] = []
-
+    for ticker in all_news:
+        for item in all_news[ticker]:
+            text_to_analyze = f"{item.get('headline', '')}. {item.get('summary', '')}"
+            item['sentiment'] = analyze_sentiment(text_to_analyze)
     return all_news
 
 def save_as_json(data, filepath):
@@ -134,14 +103,14 @@ def save_as_json(data, filepath):
 # --- Main Execution ---
 
 if __name__ == "__main__":
-    # Fetch from NewsAPI
-    newsapi_data = fetch_newsapi_data(NEWSAPI_KEY, NEWS_KEYWORDS)
+    # Process NewsAPI data
+    newsapi_data = process_newsapi_data(NEWSAPI_KEY, NEWS_KEYWORDS)
     if newsapi_data:
         save_as_json(newsapi_data, f"{DATA_DIR}/newsapi_articles.json")
 
-    # Fetch from Finnhub
-    finnhub_data = fetch_finnhub_data(FINNHUB_KEY, FINNHUB_TICKERS)
+    # Process Finnhub data
+    finnhub_data = process_finnhub_data(FINNHUB_KEY, FINNHUB_TICKERS)
     if finnhub_data:
         save_as_json(finnhub_data, f"{DATA_DIR}/finnhub_articles.json")
 
-    print("\nNews fetching process complete.")
+    print("\nNews processing complete.")
