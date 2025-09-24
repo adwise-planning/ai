@@ -6,9 +6,17 @@ from sklearn.experimental import enable_iterative_imputer
 from sklearn.impute import IterativeImputer
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 
+import configparser
+import subprocess
+
 # --- Configuration ---
+config = configparser.ConfigParser()
+config.read('config.ini')
+
 DATA_DIR = "data"
-INPUT_CSV = f"{DATA_DIR}/lending_club_sample.csv"
+KAGGLE_DATASET = config['kaggle']['dataset']
+KAGGLE_FILENAME = config['kaggle']['filename']
+RAW_DATA_FILE = f"{DATA_DIR}/{KAGGLE_FILENAME}"
 PROCESSED_PARQUET = f"{DATA_DIR}/lending_club_processed.parquet"
 DB_FILE = f"{DATA_DIR}/lending_club.duckdb"
 SCALER_FILE = f"{DATA_DIR}/scaler.joblib"
@@ -17,6 +25,40 @@ SCALER_FILE = f"{DATA_DIR}/scaler.joblib"
 
 import os
 from datetime import datetime, timedelta
+
+def download_from_kaggle():
+    """
+    Attempts to download the credit dataset from Kaggle.
+    """
+    print("--- Attempting to download data from Kaggle ---")
+    if os.path.exists(RAW_DATA_FILE):
+        print(f"Data file already exists at {RAW_DATA_FILE}. Skipping download.")
+        return True
+
+    try:
+        subprocess.run(
+            [
+                "kaggle", "datasets", "download",
+                "-d", KAGGLE_DATASET,
+                "-f", KAGGLE_FILENAME,
+                "-p", DATA_DIR,
+                "--unzip"
+            ],
+            check=True,
+            capture_output=True,
+            text=True
+        )
+        print("Successfully downloaded data from Kaggle.")
+        return True
+    except (subprocess.CalledProcessError, FileNotFoundError) as e:
+        print("!!! WARNING: Failed to download from Kaggle. !!!")
+        if isinstance(e, subprocess.CalledProcessError):
+            print(f"Kaggle API error: {e.stderr}")
+        else:
+            print("It seems the 'kaggle' command is not installed or not in your PATH.")
+        print("Proceeding with synthetic data generation as a fallback.")
+        return False
+
 
 def generate_synthetic_lending_club_data(num_rows=1000):
     """
@@ -48,21 +90,23 @@ def generate_synthetic_lending_club_data(num_rows=1000):
     })
     return df
 
-def load_and_preprocess_data(csv_path):
+def load_and_preprocess_data(raw_file_path):
     """
-    Loads the synthetic Lending Club data and applies preprocessing steps.
-    If the source CSV does not exist, it generates it first.
+    Loads the raw Lending Club data and applies preprocessing steps.
     """
-    if not os.path.exists(csv_path):
-        print(f"Data file not found at {csv_path}. Generating synthetic data...")
-        synthetic_df = generate_synthetic_lending_club_data(num_rows=2000)
-        os.makedirs(os.path.dirname(csv_path), exist_ok=True)
-        synthetic_df.to_csv(csv_path, index=False)
-        print(f"Synthetic data saved to {csv_path}")
+    print(f"--- Loading and preprocessing data from {raw_file_path} ---")
 
-    df = pd.read_csv(csv_path)
-    print("Loaded raw data:")
-    print(df.head())
+    # The downloaded file is gzipped
+    compression = 'gzip' if raw_file_path.endswith('.gz') else None
+
+    try:
+        # Load a sample of the data to avoid memory issues with the full dataset
+        df = pd.read_csv(raw_file_path, compression=compression, nrows=50000)
+        print("Loaded raw data:")
+        print(df.head())
+    except FileNotFoundError:
+        print(f"!!! ERROR: Raw data file not found at {raw_file_path}. Aborting. !!!")
+        return None
 
     # 1. Label Encoding for 'loan_status'
     # We are interested in 'Fully Paid' vs 'Charged Off'
@@ -151,9 +195,25 @@ def save_to_parquet(df, filepath):
 # --- Main Execution ---
 
 if __name__ == "__main__":
-    processed_df = load_and_preprocess_data(INPUT_CSV)
+    # 1. Attempt to download real data from Kaggle
+    download_successful = download_from_kaggle()
 
-    if not processed_df.empty:
+    # 2. If download fails, generate synthetic data as a fallback
+    if not os.path.exists(RAW_DATA_FILE):
+        print("Real data not found, generating synthetic data...")
+        synthetic_df = generate_synthetic_lending_club_data(num_rows=2000)
+        # The synthetic data is not gzipped, so we save it with a .csv extension
+        synthetic_path = RAW_DATA_FILE.replace('.gz', '')
+        synthetic_df.to_csv(synthetic_path, index=False)
+        print(f"Synthetic data saved to {synthetic_path}")
+        raw_data_to_process = synthetic_path
+    else:
+        raw_data_to_process = RAW_DATA_FILE
+
+    # 3. Process the available data (real or synthetic)
+    processed_df = load_and_preprocess_data(raw_data_to_process)
+
+    if processed_df is not None and not processed_df.empty:
         save_to_duckdb(processed_df, DB_FILE)
         save_to_parquet(processed_df, PROCESSED_PARQUET)
         print("\n--- Sample of the final processed data ---")

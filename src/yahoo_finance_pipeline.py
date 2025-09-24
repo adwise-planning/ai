@@ -3,9 +3,14 @@ import pandas as pd
 import os
 from datetime import datetime
 
+import configparser
+
 # --- Configuration ---
+config = configparser.ConfigParser()
+config.read('config.ini')
+
 DATA_DIR = "data"
-TICKERS = ["AAPL", "^GSPC"]  # S&P 500 is ^GSPC
+TICKERS = [ticker.strip() for ticker in config['yahoo_finance']['tickers'].split(',')]
 START_DATE = "2020-01-01"
 END_DATE = datetime.now().strftime("%Y-%m-%d")
 

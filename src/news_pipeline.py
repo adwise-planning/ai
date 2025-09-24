@@ -4,16 +4,21 @@ from newsapi import NewsApiClient
 import finnhub
 import pandas as pd
 
+import configparser
+
 # --- Configuration ---
+config = configparser.ConfigParser()
+config.read('config.ini')
+
 DATA_DIR = "data"
 NEWSAPI_KEY = os.environ.get("NEWSAPI_KEY", "YOUR_NEWSAPI_KEY")
 FINNHUB_KEY = os.environ.get("FINNHUB_KEY", "YOUR_FINNHUB_KEY")
 
 # Keywords for NewsAPI
-NEWS_KEYWORDS = ["inflation", "Bitcoin", "recession", "S&P500"]
+NEWS_KEYWORDS = [keyword.strip() for keyword in config['news_api']['keywords'].split(',')]
 
 # Tickers for Finnhub
-FINNHUB_TICKERS = ["AAPL", "TSLA", "GOOGL"]
+FINNHUB_TICKERS = [ticker.strip() for ticker in config['news_api']['tickers'].split(',')]
 
 
 # --- Functions ---
