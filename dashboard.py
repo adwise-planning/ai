@@ -122,51 +122,49 @@ def render_portfolio_optimizer(tab):
 
 
 def render_control_panel(tab):
-    with tab:
-        st.header("🛠️ Control Panel")
-        st.subheader("Pipeline Execution")
-        PIPELINE_SCRIPTS = ["src/financial_data_pipeline.py", "src/credit_data_pipeline.py", "src/macro_data_pipeline.py", "src/news_pipeline.py"]
-        if st.button("Run All Pipelines"):
-            with st.spinner("Running all pipelines..."):
-                output = ""
-                for script in PIPELINE_SCRIPTS:
-                    output += f">>> Running {script}...\n"
-                    output += run_script(script) + "\n\n"
-                st.code(output, language='bash')
-            st.success("All pipelines finished.")
+    st.header("🛠️ Control Panel")
+    st.subheader("Pipeline Execution")
+    PIPELINE_SCRIPTS = ["src/financial_data_pipeline.py", "src/credit_data_pipeline.py", "src/macro_data_pipeline.py", "src/news_pipeline.py"]
+    if st.button("Run All Pipelines"):
+        with st.spinner("Running all pipelines..."):
+            output = ""
+            for script in PIPELINE_SCRIPTS:
+                output += f">>> Running {script}...\n"
+                output += run_script(script) + "\n\n"
+            st.code(output, language='bash')
+        st.success("All pipelines finished.")
 
-        st.subheader("Configuration Management")
-        CONFIG_FILE = 'config.ini'
-        try:
-            with open(CONFIG_FILE, 'r') as f:
-                config_text = f.read()
-        except FileNotFoundError:
-            config_text = "[Error] config.ini not found."
-        new_config_text = st.text_area("config.ini", value=config_text, height=300)
-        if st.button("Save Configuration"):
-            with open(CONFIG_FILE, 'w') as f:
-                f.write(new_config_text)
-            st.success("Configuration saved.")
-            st.rerun()
+    st.subheader("Configuration Management")
+    CONFIG_FILE = 'config.ini'
+    try:
+        with open(CONFIG_FILE, 'r') as f:
+            config_text = f.read()
+    except FileNotFoundError:
+        config_text = "[Error] config.ini not found."
+    new_config_text = st.text_area("config.ini", value=config_text, height=300)
+    if st.button("Save Configuration"):
+        with open(CONFIG_FILE, 'w') as f:
+            f.write(new_config_text)
+        st.success("Configuration saved.")
+        st.rerun()
 
 def render_data_viewer(tab):
-    with tab:
-        st.header("📄 Data Viewer")
-        DATA_DIR = "data"
-        try:
-            available_files = [f for f in os.listdir(DATA_DIR) if os.path.isfile(os.path.join(DATA_DIR, f))]
-        except FileNotFoundError:
-            available_files = []
-        if not available_files:
-            st.warning(f"No data files found in `{DATA_DIR}`.")
-        else:
-            selected_file = st.selectbox("Select a data file", options=available_files)
-            if selected_file:
-                filepath = os.path.join(DATA_DIR, selected_file)
-                st.subheader(f"Preview of `{selected_file}`")
-                df_view = load_data(filepath, selected_file.split('.')[-1])
-                if df_view is not None:
-                    st.dataframe(df_view)
+    st.header("📄 Data Viewer")
+    DATA_DIR = "data"
+    try:
+        available_files = [f for f in os.listdir(DATA_DIR) if os.path.isfile(os.path.join(DATA_DIR, f))]
+    except FileNotFoundError:
+        available_files = []
+    if not available_files:
+        st.warning(f"No data files found in `{DATA_DIR}`.")
+    else:
+        selected_file = st.selectbox("Select a data file", options=available_files)
+        if selected_file:
+            filepath = os.path.join(DATA_DIR, selected_file)
+            st.subheader(f"Preview of `{selected_file}`")
+            df_view = load_data(filepath, selected_file.split('.')[-1])
+            if df_view is not None:
+                st.dataframe(df_view)
 
 # --- Main App ---
 st.title("📊 Financial Analysis Dashboard")
@@ -182,8 +180,5 @@ with main_tab1:
     render_macro_trends(analysis_tabs[3])
     render_portfolio_optimizer(analysis_tabs[4])
 
-with main_tab2:
-    render_control_panel(st) # Pass the st object to the function
-
-with main_tab3:
-    render_data_viewer(st) # Pass the st object to the function
+render_control_panel(main_tab2)
+render_data_viewer(main_tab3)
